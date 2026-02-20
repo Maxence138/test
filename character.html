@@ -1,0 +1,232 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colorful Floating Letters</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            user-select: none;
+            cursor: default;
+            transition: background 1.5s ease;
+        }
+
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        .letter {
+            position: absolute;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            pointer-events: none;
+            z-index: 1;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script>
+        // 只增大浮动幅度的参数
+        const config = {
+            cellSize: 60,
+            fontSize: 28,
+            radius: 150,
+            strength: 1.0,       // 稍微增强吸引力
+            maxOffset: 70,       // 大幅增加最大偏移量
+            letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            randomOffset: 20
+        };
+
+        class ColorfulInteractiveBackground {
+            constructor(containerId, config) {
+                this.container = document.getElementById(containerId);
+                this.config = config;
+                this.letters = [];
+                this.mouseX = window.innerWidth / 2;
+                this.mouseY = window.innerHeight / 2;
+                this.animationId = null;
+                this.bgColors = [
+                    '#1a1a2e', '#16213e', '#0f3460', '#533483', 
+                    '#e94560', '#00b4d8', '#0077b6', '#03045e',
+                    '#7209b7', '#3a0ca3', '#4361ee', '#4cc9f0',
+                    '#f72585', '#b5179e', '#560bad', '#480ca8'
+                ];
+                this.currentBgIndex = 0;
+                
+                this.init();
+            }
+
+            init() {
+                this.createLetters();
+                this.bindEvents();
+                this.startBackgroundTransition();
+                this.animate();
+            }
+
+            createLetters() {
+                const cols = Math.ceil(window.innerWidth / this.config.cellSize) + 2;
+                const rows = Math.ceil(window.innerHeight / this.config.cellSize) + 2;
+                
+                this.container.innerHTML = '';
+                this.letters = [];
+
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const letter = document.createElement('div');
+                        letter.className = 'letter';
+                        
+                        // 随机选择字母
+                        const randomLetter = this.config.letters[
+                            Math.floor(Math.random() * this.config.letters.length)
+                        ];
+                        
+                        letter.textContent = randomLetter;
+                        letter.style.fontSize = `${this.config.fontSize}px`;
+                        letter.style.color = this.getRandomColor();
+                        
+                        // 基础位置 + 随机偏移
+                        const baseX = col * this.config.cellSize;
+                        const baseY = row * this.config.cellSize;
+                        
+                        letter.dataset.baseX = baseX;
+                        letter.dataset.baseY = baseY;
+                        letter.dataset.originalX = baseX + (Math.random() - 0.5) * this.config.randomOffset;
+                        letter.dataset.originalY = baseY + (Math.random() - 0.5) * this.config.randomOffset;
+                        
+                        // 设置初始位置
+                        letter.style.left = `${letter.dataset.originalX}px`;
+                        letter.style.top = `${letter.dataset.originalY}px`;
+                        
+                        this.container.appendChild(letter);
+                        this.letters.push(letter);
+                    }
+                }
+            }
+
+            getRandomColor() {
+                const colors = [
+                    'rgba(255, 255, 255, 0.7)',
+                    'rgba(255, 200, 200, 0.6)',
+                    'rgba(200, 255, 200, 0.6)',
+                    'rgba(200, 200, 255, 0.6)',
+                    'rgba(255, 255, 200, 0.6)',
+                    'rgba(255, 200, 255, 0.6)',
+                    'rgba(200, 255, 255, 0.6)',
+                    'rgba(255, 230, 200, 0.6)'
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            startBackgroundTransition() {
+                setInterval(() => {
+                    this.currentBgIndex = (this.currentBgIndex + 1) % this.bgColors.length;
+                    document.body.style.background = this.bgColors[this.currentBgIndex];
+                }, 3000);
+            }
+
+            bindEvents() {
+                document.addEventListener('mousemove', (e) => {
+                    this.mouseX = e.clientX;
+                    this.mouseY = e.clientY;
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.mouseX = e.touches[0].clientX;
+                    this.mouseY = e.touches[0].clientY;
+                });
+
+                window.addEventListener('resize', () => {
+                    this.createLetters();
+                });
+            }
+
+            animate() {
+                this.letters.forEach(letter => {
+                    const originalX = parseFloat(letter.dataset.originalX);
+                    const originalY = parseFloat(letter.dataset.originalY);
+                    
+                    // 计算与鼠标的距离
+                    const distance = Math.sqrt(
+                        Math.pow(this.mouseX - originalX, 2) + 
+                        Math.pow(this.mouseY - originalY, 2)
+                    );
+
+                    let offsetX = 0;
+                    let offsetY = 0;
+                    let scale = 1;
+
+                    // 如果在影响半径内
+                    if (distance < this.config.radius) {
+                        // 保持原来的浮动方式，只增大幅度
+                        const normalizedDistance = distance / this.config.radius;
+                        const force = Math.pow(1 - normalizedDistance, 2) * this.config.strength;
+                        
+                        const angle = Math.atan2(this.mouseY - originalY, this.mouseX - originalX);
+                        
+                        // 大幅增加的偏移量（主要修改点）
+                        offsetX = Math.cos(angle) * force * this.config.maxOffset;
+                        offsetY = Math.sin(angle) * force * this.config.maxOffset;
+                        
+                        // 保持原来的缩放效果
+                        scale = 1 + force * 0.5;
+                        
+                        // 鼠标非常接近时添加旋转效果
+                        if (distance < this.config.radius * 0.3) {
+                            letter.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale}) rotate(${force * 10}deg)`;
+                        } else {
+                            letter.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+                        }
+                        
+                        // 保持原来的颜色变化
+                        letter.style.color = this.getHighlightColor(force);
+                    } else {
+                        // 回归原始状态
+                        letter.style.transform = 'translate(0px, 0px) scale(1)';
+                        letter.style.color = this.getRandomColor();
+                    }
+                });
+
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+
+            getHighlightColor(force) {
+                const r = Math.floor(255 * force + 255 * (1 - force));
+                const g = Math.floor(200 * force + 255 * (1 - force));
+                const b = Math.floor(150 * force + 255 * (1 - force));
+                return `rgba(${r}, ${g}, ${b}, ${0.6 + force * 0.4})`;
+            }
+
+            destroy() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            const colorfulBG = new ColorfulInteractiveBackground('container', config);
+            
+            // 清理函数
+            window.cleanupColorfulBG = () => {
+                colorfulBG.destroy();
+            };
+        });
+    </script>
+</body>
+</html>
+```
